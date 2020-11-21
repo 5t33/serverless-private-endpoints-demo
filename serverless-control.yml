@@ -1,0 +1,37 @@
+
+service: sls-endpoints-cntrl
+app: sls-private-endpoints-demo
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, dev}
+  region: us-east-2
+  endpointType: PRIVATE
+  vpcEndpointIds:
+    - ${ssm:/demo/vpc/private_api_gateway_endpoint/id}
+  resourcePolicy:
+    - Effect: Allow
+      Principal: "*"
+      Action: execute-api:Invoke
+      Resource:
+        - execute-api:/*/GET/accounts/control/getUserById
+      Condition:
+        IpAddress:
+          aws:SourceIp:
+            - 160.72.32.170
+  
+
+functions:
+  getUserById:
+    role: !ImportValue LambdaRoleArn-${self:provider.stage}
+    handler: getUserById.index
+    vpc:
+      subnetIds:
+        - ${ssm:/demo/vpc/private_subnet_a}
+        - ${ssm:/demo/vpc/private_subnet_b}
+    events:
+      - http:
+          path: /accounts/control/getUserById
+          method: get
+
